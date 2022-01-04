@@ -1,3 +1,3 @@
-module export-git-files
+module github.com/FelixYYang/my-tools
 
 go 1.17

@@ -15,3 +15,4 @@ $ git-files-export.exe
 ~~~
 $ git-files-export.exe HEAD~ HEAD
 ~~~
+注意：文件将导出到git项目根目录下的 gitExport 文件夹中

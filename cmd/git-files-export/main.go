@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -17,8 +18,16 @@ func main() {
 	}
 	args := os.Args
 	exportName := "gitExport"
-	if len(args) > 1 && len(args[1]) != 0 {
+	/*if len(args) > 1 && len(args[1]) != 0 {
 		exportName = args[1]
+	}*/
+	commitCurrent := "HEAD"
+	commitPrevious := "HEAD~"
+	if len(args) > 1 {
+		commitCurrent = args[1]
+		if len(args) > 2 {
+			commitPrevious = args[2]
+		}
 	}
 
 	exportPath := filepath.Join(wDir, exportName)
@@ -43,7 +52,7 @@ func main() {
 	}
 	toDir := string(bytes.TrimRight(topDirBytes, "\n"))
 
-	cmdGetFileList := exec.Command("git", strings.Split("diff --name-only HEAD~ HEAD --", " ")...)
+	cmdGetFileList := exec.Command("git", strings.Split(fmt.Sprintf("diff --name-only %s %s --", commitPrevious, commitCurrent), " ")...)
 	fileListBytes, err := cmdGetFileList.CombinedOutput()
 	if err != nil {
 		log.Println(string(fileListBytes))
@@ -61,11 +70,12 @@ func main() {
 				log.Fatalln(err)
 			}
 		}
-		file, err := os.Create(fileP)
-		if err != nil {
-			log.Fatalln(err)
-		}
 		sourceFile, err := os.Open(filepath.Join(toDir, fileRelativePath))
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		file, err := os.Create(fileP)
 		if err != nil {
 			log.Fatalln(err)
 		}

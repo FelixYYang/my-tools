@@ -24,9 +24,9 @@ func main() {
 	commitCurrent := "HEAD"
 	commitPrevious := "HEAD~"
 	if len(args) > 1 {
-		commitCurrent = args[1]
+		commitPrevious = args[1]
 		if len(args) > 2 {
-			commitPrevious = args[2]
+			commitCurrent = args[2]
 		}
 	}
 
@@ -52,14 +52,13 @@ func main() {
 	}
 	toDir := string(bytes.TrimRight(topDirBytes, "\n"))
 
-	cmdGetFileList := exec.Command("git", strings.Split(fmt.Sprintf("diff --name-only %s %s --", commitPrevious, commitCurrent), " ")...)
+	cmdGetFileList := exec.Command("git", strings.Split(fmt.Sprintf("diff --name-only --diff-filter=d -z %s %s --", commitPrevious, commitCurrent), " ")...)
 	fileListBytes, err := cmdGetFileList.CombinedOutput()
 	if err != nil {
 		log.Println(string(fileListBytes))
 		log.Fatalln(err)
 	}
-	filesBytes := bytes.Split(bytes.TrimRight(fileListBytes, "\n"), []byte("\n"))
-	println(exportPath)
+	filesBytes := bytes.Split(bytes.TrimRight(fileListBytes, "\x00"), []byte("\x00"))
 	for _, filesByte := range filesBytes {
 		fileRelativePath := string(filesByte)
 		fileP := filepath.Join(exportPath, fileRelativePath)
@@ -84,6 +83,6 @@ func main() {
 		}
 		_ = file.Close()
 		_ = sourceFile.Close()
-		log.Println("filepath" + fileP)
+		log.Println(fileP)
 	}
 }

@@ -73,9 +73,11 @@ func (p *lenPacker) Pack(r io.Reader) (Package, error) {
 		return Package{}, err
 	}
 
+	bytes := make([]byte, totalLen)
+	copy(bytes, p.leftData[:totalLen])
 	return Package{
 		Len:  totalLen,
-		Data: p.leftData[:totalLen],
+		Data: bytes,
 	}, nil
 }
 

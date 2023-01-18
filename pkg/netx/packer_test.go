@@ -30,8 +30,8 @@ func TestInt32(t *testing.T) {
 		if rightLen > 0 {
 			buffer.Write(make([]byte, rightLen))
 		}
-		p := NewLenPacker(option)
-		pack, err := p.Pack(buffer)
+		p := NewLenUnPacker(option)
+		pack, err := p.UnPack(buffer)
 		if err != nil {
 			t.Error(err)
 			return
@@ -66,8 +66,8 @@ func TestInt64(t *testing.T) {
 		if rightLen > 0 {
 			buffer.Write(make([]byte, rightLen))
 		}
-		p := NewLenPacker(option)
-		pack, err := p.Pack(buffer)
+		p := NewLenUnPacker(option)
+		pack, err := p.UnPack(buffer)
 		if err != nil {
 			t.Error(err)
 			return

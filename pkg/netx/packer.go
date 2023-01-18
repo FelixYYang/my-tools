@@ -6,10 +6,10 @@ import (
 	"io"
 )
 
-// Packer 分包器
+// UnPacker 分包器
 // 将流数据按指定规则分包
-type Packer interface {
-	Pack(r io.Reader) (Package, error)
+type UnPacker interface {
+	UnPack(r io.Reader) (Package, error)
 }
 
 type Package struct {
@@ -17,7 +17,7 @@ type Package struct {
 	Data []byte
 }
 
-func NewLenPacker(option LenOption) Packer {
+func NewLenUnPacker(option LenOption) UnPacker {
 	l := &lenPacker{MaxLen: option.MaxLen, LenType: option.LenType, Offset: option.Offset, ByteOrder: option.ByteOrder}
 	var lenByteLen uint64
 	switch option.LenType.(type) {
@@ -56,7 +56,7 @@ type lenPacker struct {
 	leftData  []byte
 }
 
-func (p *lenPacker) Pack(r io.Reader) (Package, error) {
+func (p *lenPacker) UnPack(r io.Reader) (Package, error) {
 	_, err := io.ReadFull(r, p.leftData[:p.OffsetR])
 	if err != nil {
 		return Package{}, err

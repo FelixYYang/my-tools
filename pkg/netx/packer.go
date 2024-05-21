@@ -9,7 +9,16 @@ import (
 // UnPacker 分包器
 // 将流数据按指定规则分包
 type UnPacker interface {
-	UnPack(r io.Reader) (Package, error)
+	// UnPack reads data from the given io.Reader and unpacks it into the provided byte slice.
+	//
+	// Parameters:
+	// - r: the io.Reader from which to read the data.
+	// - buf: the byte slice into which the data will be unpacked.
+	//
+	// Returns:
+	// - int: the number of bytes read and unpacked.
+	// - error: an error if the unpacking process encountered any issues.
+	UnPack(io.Reader, []byte) (int, error)
 }
 
 type Package struct {
@@ -17,82 +26,78 @@ type Package struct {
 	Data []byte
 }
 
+// NewLenUnPacker creates a new instance of LenUnPacker based on the provided LenOption.
+//
+// Parameters:
+// - option: the LenOption containing the configuration for the LenUnPacker.
+//
+// Returns:
+// - UnPacker: the newly created LenUnPacker instance.
 func NewLenUnPacker(option LenOption) UnPacker {
-	l := &lenPacker{MaxLen: option.MaxLen, LenType: option.LenType, Offset: option.Offset, ByteOrder: option.ByteOrder}
-	var lenByteLen uint64
+	byteOrder := option.ByteOrder
+	var lenByteLen int
+	var parseLenFunc func([]byte) int
 	switch option.LenType.(type) {
 	case int8, uint8:
+		parseLenFunc = func(buf []byte) int {
+			return int(buf[0])
+		}
 		lenByteLen = 1
 	case int16, uint16:
+		parseLenFunc = func(buf []byte) int {
+			return int(byteOrder.Uint16(buf))
+		}
 		lenByteLen = 2
 	case int32, uint32:
+		parseLenFunc = func(buf []byte) int {
+			return int(byteOrder.Uint32(buf))
+		}
 		lenByteLen = 4
 	case int64, uint64:
+		parseLenFunc = func(buf []byte) int {
+			return int(byteOrder.Uint64(buf))
+		}
 		lenByteLen = 8
 	default:
 		panic("LenType is invalid")
 	}
+	l := &lenPacker{MaxLen: option.MaxLen, Offset: option.Offset, parseLen: parseLenFunc}
 	l.OffsetR = l.Offset + lenByteLen
 	if l.OffsetR > l.MaxLen {
 		panic("Offset+lenByteLen > MaxLen")
 	}
-	l.leftData = make([]byte, l.MaxLen)
 	return l
 }
 
 type LenOption struct {
-	MaxLen    uint64
+	MaxLen    int
 	LenType   any
-	Offset    uint64
+	Offset    int
 	ByteOrder binary.ByteOrder
 }
 
 type lenPacker struct {
-	MaxLen    uint64
-	LenType   any
-	ByteOrder binary.ByteOrder
-	Offset    uint64
-	OffsetR   uint64
-	leftData  []byte
+	MaxLen   int
+	Offset   int
+	OffsetR  int
+	parseLen func([]byte) int
 }
 
-func (p *lenPacker) UnPack(r io.Reader) (Package, error) {
-	_, err := io.ReadFull(r, p.leftData[:p.OffsetR])
+func (p *lenPacker) UnPack(r io.Reader, buf []byte) (int, error) {
+	_, err := io.ReadFull(r, buf[:p.OffsetR])
 	if err != nil {
-		return Package{}, err
+		return 0, err
 	}
-	totalLen := p.parseLen(p.leftData[p.Offset:p.OffsetR])
+	totalLen := p.parseLen(buf[p.Offset:p.OffsetR])
 	if totalLen == 0 {
-		return Package{}, errors.New("total len parse err")
+		return 0, errors.New("total len parse err")
 	}
 	if totalLen > p.MaxLen {
-		return Package{}, errors.New("totalLen > MaxLen")
+		return 0, errors.New("totalLen > MaxLen")
 	}
-	_, err = io.ReadFull(r, p.leftData[p.OffsetR:totalLen])
+	_, err = io.ReadFull(r, buf[p.OffsetR:totalLen])
 	if err != nil {
-		return Package{}, err
+		return 0, err
 	}
-
-	bytes := make([]byte, totalLen)
-	copy(bytes, p.leftData[:totalLen])
-	return Package{
-		Len:  totalLen,
-		Data: bytes,
-	}, nil
-}
-
-func (p *lenPacker) parseLen(buf []byte) (lenNum uint64) {
-	switch p.LenType.(type) {
-	case int8, uint8:
-		lenNum = uint64(buf[0])
-	case int16, uint16:
-		lenNum = uint64(p.ByteOrder.Uint16(buf))
-	case int32, uint32:
-		lenNum = uint64(p.ByteOrder.Uint32(buf))
-	case int64, uint64:
-		lenNum = p.ByteOrder.Uint64(buf)
-	default:
-		panic("LenType is invalid")
-	}
-	return
+	return totalLen, nil
 }
